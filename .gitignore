@@ -1,0 +1,22 @@
+# Compiled Go binaries
+vital-watch
+main
+*.exe
+*.out
+
+# Environment files
+.env
+.env.local
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Log files
+*.log
+
+# Go test cache
+*.coverprofile
+*.test
