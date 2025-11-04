@@ -47,7 +47,7 @@ func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword str
 }
 
 func (r *Repository) GetPatientByEmail(email string) (models.Patient, error) {
-	query := `SELECT ID, FirstName, LastName, Email, HashedPassword FROM patients WHERE Email=$1`
+	query := `SELECT id, firstName, lastName, email, hashedPassword FROM patients WHERE Email=$1`
 
 	var user models.Patient
 
@@ -60,7 +60,7 @@ func (r *Repository) GetPatientByEmail(email string) (models.Patient, error) {
 }
 
 func (r *Repository) GetDoctorByEmail(email string) (models.Doctor, error) {
-	query := `SELECT ID, FirstName, LastName, Email, HashedPassword FROM doctors WHERE Email=$1`
+	query := `SELECT id, firstName, lastName, email, hashedPassword FROM doctors WHERE Email=$1`
 
 	var user models.Doctor
 	err := r.DB.QueryRow(query, email).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.HashedPassword)
