@@ -11,30 +11,39 @@ type Repository struct {
 	DB *sql.DB
 }
 
-func (r *Repository) CreatePatient(user models.Patient) (string, error) {
-	query := `INSERT INTO patient (FirstName, LastName, HashedPassword) VALUES ($1, '$2, $3) RETURNING ID`
+func (r *Repository) CreatePatient(firstName, lastName, email, hashedPassword string) (int, error) {
+	query := `
+		INSERT INTO patients (firstName, lastName, email, hashedPassword)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
 
-	var id string
+	var newID int
 
-	err := r.DB.QueryRow(query, user.FirstName, user.LastName, user.HashedPassword).Scan(&id)
+	// Pass all 4 arguments
+	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword).Scan(&newID)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
-	return id, nil
+	return newID, nil
 }
 
-func (r *Repository) CreateDoctor(user models.Doctor) (string, error) {
-	query := `INSERT INTO doctor (FirstName, LastName, HashedPassword) VALUES ($1, '$2, $3) RETURNING ID`
+func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword string) (int, error) {
+	query := `
+		INSERT INTO doctors (firstName, lastName, email, hashedPassword)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
 
-	var id string
+	var newID int
 
-	err := r.DB.QueryRow(query, user.FirstName, user.LastName, user.HashedPassword).Scan(&id)
+	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword).Scan(&newID)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
 
-	return id, nil
+	return newID, nil
 }
 
 func (r *Repository) GetPatientByEmail(email string) (models.Patient, error) {
