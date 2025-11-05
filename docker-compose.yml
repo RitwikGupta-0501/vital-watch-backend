@@ -1,17 +1,39 @@
 version: "3.9"
+
 services:
-  db:
+  # This is your new service for the Go API
+  api:
     build:
       context: .
-      dockerfile: .Dockerfile
-    image: cc-backend-postgres
-    container_name: cc-pg-temp
+      dockerfile: .Dockerfile  # It will use the new Dockerfile we just wrote
+    container_name: vital-watch-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080" # Map host port 8080 to container port 8080
+    depends_on:
+      - db # Tells Docker to start the 'db' service *before* starting the 'api'
+    env_file:
+      - .env # This is CRITICAL. It loads your .env file into the container.
+
+  # This is your updated db service
+  db:
+    # We no longer "build" postgres. We use the official image directly.
+    image: postgres:15-alpine
+    container_name: vital-watch-db
     environment:
+      # These values are now set by your .env file for the 'api' service
+      # But the DB container still needs them.
       POSTGRES_USER: appuser
       POSTGRES_PASSWORD: apppassword
       POSTGRES_DB: appdb
-    tmpfs:
-      - /var/lib/postgresql/data:size=1g
     ports:
       - "5432:5432"
-    restart: "no"
+    
+    # Use a "volume" to save your data permanently.
+    # `tmpfs` from your old file is temporary and deletes data on stop.
+    tmpfs:
+      - /var/lib/postgresql/data:size=1g
+
+volumes:
+  # This defines the "postgres_data" volume we named above
+  postgres_data:
