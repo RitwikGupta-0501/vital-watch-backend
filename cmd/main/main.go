@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
@@ -116,13 +117,14 @@ func main() {
 	// Set up Gin Server
 	r := gin.Default()
 
+	// Enable CORS middleware
+	r.Use(cors.Default())
+
 	// -----------------------
 	// -       Routes        -
 	// -----------------------
 	r.GET("/api/ping", h.Ping)
-	r.POST("/api/patient", h.CreatePatient)
-	r.POST("/api/register/patient", h.CreatePatient)
-	r.POST("/api/register/doctor", h.CreateDoctor)
+	r.POST("/api/register", h.RegisterUser)
 	r.POST("/api/login", h.Login)
 
 	// --- Protected Routes ---

@@ -127,40 +127,9 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
-func (h *Handler) CreatePatient(c *gin.Context) {
-	// 1. Bind to the new request struct, NOT the model
+func (h *Handler) RegisterUser(c *gin.Context) {
 	var req struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
-		Password  string `json:"password"`
-	}
-
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// 2. Hash the raw password from the request
-	hashed, err := utils.HashPassword(req.Password)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
-		return
-	}
-
-	// 3. Call your new repository function with the separated fields
-	id, err := h.Repo.CreatePatient(req.FirstName, req.LastName, req.Email, hashed)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create patient"})
-		return
-	}
-
-	// 4. Return the new ID
-	c.JSON(http.StatusCreated, gin.H{"id": id})
-}
-
-func (h *Handler) CreateDoctor(c *gin.Context) {
-	var req struct {
+		Role      string `json:"role"`
 		FirstName string `json:"first_name"`
 		LastName  string `json:"last_name"`
 		Email     string `json:"email"`
@@ -178,9 +147,19 @@ func (h *Handler) CreateDoctor(c *gin.Context) {
 		return
 	}
 
-	id, err := h.Repo.CreateDoctor(req.FirstName, req.LastName, req.Email, hashed)
+	var id int
+	switch req.Role {
+	case "patient":
+		id, err = h.Repo.CreatePatient(req.FirstName, req.LastName, req.Email, hashed)
+	case "doctor":
+		id, err = h.Repo.CreateDoctor(req.FirstName, req.LastName, req.Email, hashed)
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
+		return
+	}
+
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create doctor"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
 		return
 	}
 
