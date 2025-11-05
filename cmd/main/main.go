@@ -46,7 +46,6 @@ func init_db() *sql.DB {
 	if err != nil {
 		log.Fatal("Failed to open database connection:", err)
 	}
-	defer db.Close()
 
 	// Verify connection
 	err = db.Ping()
@@ -99,6 +98,7 @@ func main() {
 
 	// Initialize DB
 	var db = init_db()
+	defer db.Close()
 
 	// Run DB migrations
 	run_migrations(db)
