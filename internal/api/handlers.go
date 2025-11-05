@@ -158,3 +158,31 @@ func (h *Handler) CreatePatient(c *gin.Context) {
 	// 4. Return the new ID
 	c.JSON(http.StatusCreated, gin.H{"id": id})
 }
+
+func (h *Handler) CreateDoctor(c *gin.Context) {
+	var req struct {
+		FirstName string `json:"first_name"`
+		LastName  string `json:"last_name"`
+		Email     string `json:"email"`
+		Password  string `json:"password"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	hashed, err := utils.HashPassword(req.Password)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	id, err := h.Repo.CreateDoctor(req.FirstName, req.LastName, req.Email, hashed)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create doctor"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
