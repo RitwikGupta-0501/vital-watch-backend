@@ -1,6 +1,6 @@
 # ---- Build Stage ----
 # Use the official Go image as the builder
-FROM golang:1.22-alpine AS builder
+FROM golang:1.25.3-alpine AS builder
 
 WORKDIR /app
 

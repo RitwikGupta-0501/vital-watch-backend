@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   # This is your new service for the Go API
   api:
