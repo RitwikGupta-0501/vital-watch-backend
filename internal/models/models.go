@@ -44,13 +44,15 @@ func (d Doctor) GetHashedPassword() string {
 }
 
 type Appointment struct {
-	ID        int       `json:"id"`
-	DoctorID  int       `json:"doctor_id"`
-	PatientID int       `json:"patient_id"`
-	StartTime time.Time `json:"start_time"`
-	EndTime   time.Time `json:"end_time"`
-	Status    string    `json:"status"`
-	Type      string    `json:"type"`
+	ID              int       `json:"id"`
+	DoctorID        int       `json:"doctor_id"`
+	PatientID       int       `json:"patient_id"`
+	StartTime       time.Time `json:"start_time"`
+	EndTime         time.Time `json:"end_time"`
+	Status          string    `json:"status"`
+	Type            string    `json:"type"`
+	DoctorName      string    `json:"doctorName,omitempty"`
+	DoctorSpecialty string    `json:"specialty,omitempty"`
 }
 
 type Prescription struct {

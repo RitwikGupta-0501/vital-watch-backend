@@ -118,7 +118,16 @@ func (r *Repository) GetDoctors() ([]models.Doctor, error) {
 }
 
 func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appointment, error) {
-	query := `SELECT id, patient_id, doctor_id, start_time, end_time, status, appointment_type FROM appointments WHERE patient_id = $1`
+	// 1. UPDATED: The query now JOINS the doctors table
+	query := `
+		SELECT 
+			a.id, a.patient_id, a.doctor_id, a.start_time, a.end_time, a.status, a.appointment_type,
+			d.firstName, d.lastName, d.specialty
+		FROM appointments a
+		JOIN doctors d ON a.doctor_id = d.id
+		WHERE a.patient_id = $1
+		ORDER BY a.start_time DESC
+	`
 
 	rows, err := r.DB.Query(query, patientID)
 	if err != nil {
@@ -129,10 +138,22 @@ func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appoint
 	var appointments []models.Appointment
 	for rows.Next() {
 		var appt models.Appointment
-		err := rows.Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.StartTime, &appt.EndTime, &appt.Status, &appt.Type)
+		// 2. UPDATED: Add variables to scan the new doctor fields
+		var docFirstName, docLastName, docSpecialty string
+
+		// 3. UPDATED: Scan all 10 columns
+		err := rows.Scan(
+			&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.StartTime, &appt.EndTime, &appt.Status, &appt.Type,
+			&docFirstName, &docLastName, &docSpecialty,
+		)
 		if err != nil {
 			return nil, err
 		}
+
+		// 4. UPDATED: Populate the new struct fields
+		appt.DoctorName = docFirstName + " " + docLastName
+		appt.DoctorSpecialty = docSpecialty
+
 		appointments = append(appointments, appt)
 	}
 	return appointments, nil

@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
     doctor_id INT NOT NULL REFERENCES doctors(id),
     medication VARCHAR(255) NOT NULL,
     notes TEXT,
-    file_name VARCHAR(255), -- For the PDF download
+    file_name VARCHAR(255),
     created_at TIMESTAMPTZ DEFAULT now()
 );
 
