@@ -11,6 +11,8 @@ services:
       - db
     env_file:
       - .env
+    volumes:
+      - ./storage:/app/storage
 
   db:
     image: postgres:15-alpine

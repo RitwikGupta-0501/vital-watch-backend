@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -48,14 +49,22 @@ func init_db() *sql.DB {
 		log.Fatal("Failed to open database connection:", err)
 	}
 
-	// Verify connection
-	err = db.Ping()
-	if err != nil {
-		log.Fatal("Failed to ping database:", err)
+	// --- NEW: Add a retry loop for db.Ping() ---
+	var dbErr error
+	for i := 0; i < 5; i++ { // Try 5 times
+		err = db.Ping()
+		if err == nil {
+			// Success!
+			log.Println("Successfully connected to database!")
+			return db
+		}
+		dbErr = err
+		log.Println("Failed to ping database, retrying in 2 seconds...")
+		time.Sleep(2 * time.Second)
 	}
-
-	log.Println("Successfully connected to database!")
-	return db
+	// If the loop finishes, we failed
+	log.Fatal("Failed to ping database after retries:", dbErr)
+	return nil
 }
 
 /*
@@ -145,6 +154,8 @@ func main() {
 		authGroup.GET("/appointments", h.GetAppointments)
 		authGroup.GET("/prescriptions", h.GetPrescriptions)
 		authGroup.POST("/appointments", h.CreateAppointment)
+
+		authGroup.GET("/prescriptions/:filename", h.DownloadPrescription)
 	}
 
 	// Run the server

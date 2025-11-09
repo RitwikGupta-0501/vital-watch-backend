@@ -15,3 +15,4 @@ CREATE TABLE IF NOT EXISTS doctors (
     email VARCHAR(100) UNIQUE NOT NULL,
     createdAt TIMESTAMPTZ DEFAULT now()
 );
+

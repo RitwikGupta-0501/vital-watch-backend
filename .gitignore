@@ -19,3 +19,6 @@ Thumbs.db
 # Go test cache
 *.coverprofile
 *.test
+
+# User-uploaded files
+/storage

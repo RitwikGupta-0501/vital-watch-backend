@@ -200,3 +200,13 @@ func (r *Repository) CreateAppointment(patientID int, doctorID int, startTime ti
 	}
 	return newID, nil
 }
+
+func (r *Repository) GetPrescriptionByFilename(patientID int, filename string) (models.Prescription, error) {
+	query := `SELECT id FROM prescriptions WHERE patient_id = $1 AND file_name = $2`
+
+	var pres models.Prescription
+	err := r.DB.QueryRow(query, patientID, filename).Scan(&pres.ID)
+
+	// This will correctly return sql.ErrNoRows if not found/not owned
+	return pres, err
+}

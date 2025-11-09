@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -275,4 +276,35 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"id": newID})
+}
+
+func (h *Handler) DownloadPrescription(c *gin.Context) {
+	// 1. Get the filename from the URL
+	filename := c.Param("filename")
+
+	// 2. Get the user ID from the token
+	patientID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	// 3. SECURITY CHECK: Verify this patient owns this file
+	_, err := h.Repo.GetPrescriptionByFilename(patientID.(int), filename)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized to download this file"})
+		return
+	}
+
+	// 4. Build the secure file path
+	//    We use the path from our Docker volume: /app/storage
+	//    filepath.Join prevents "directory traversal" attacks
+	filePath := filepath.Join("/app/storage", filename)
+
+	// 5. Set headers to tell the browser to download it
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Type", "application/octet-stream") // A generic type for downloading
+
+	// 6. Serve the file
+	c.File(filePath)
 }
