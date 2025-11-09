@@ -209,3 +209,70 @@ func (h *Handler) GetUserProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user role"})
 	}
 }
+
+func (h *Handler) GetDoctors(c *gin.Context) {
+	doctors, err := h.Repo.GetDoctors()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch doctors"})
+		return
+	}
+	c.JSON(http.StatusOK, doctors)
+}
+
+func (h *Handler) GetAppointments(c *gin.Context) {
+	patientID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	appointments, err := h.Repo.GetAppointmentsByPatientID(patientID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch appointments"})
+		return
+	}
+	c.JSON(http.StatusOK, appointments)
+}
+
+func (h *Handler) GetPrescriptions(c *gin.Context) {
+	patientID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	prescriptions, err := h.Repo.GetPrescriptionsByPatientID(patientID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch prescriptions"})
+		return
+	}
+	c.JSON(http.StatusOK, prescriptions)
+}
+
+func (h *Handler) CreateAppointment(c *gin.Context) {
+	var req struct {
+		DoctorID  int       `json:"doctor_id"`
+		StartTime time.Time `json:"start_time"`
+		EndTime   time.Time `json:"end_time"`
+		Type      string    `json:"type"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	patientID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	newID, err := h.Repo.CreateAppointment(patientID.(int), req.DoctorID, req.StartTime, req.EndTime, req.Type)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create appointment"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": newID})
+}
