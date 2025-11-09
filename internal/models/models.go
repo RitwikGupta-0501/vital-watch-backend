@@ -31,6 +31,9 @@ type Doctor struct {
 	LastName       string    `json:"last_name"`
 	HashedPassword string    `json:"-"`
 	CreatedAt      time.Time `json:"created_at"`
+	Specialty      string    `json:"specialty"`
+	Experience     int       `json:"experience"`
+	Available      bool      `json:"available"`
 }
 
 func (d Doctor) GetID() int {

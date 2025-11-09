@@ -2,6 +2,7 @@ package repository
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/RitwikGupta-0501/vital-watch/internal/models"
 )
@@ -93,4 +94,88 @@ func (r *Repository) GetDoctorByID(id int) (models.Doctor, error) {
 	}
 
 	return user, nil
+}
+
+func (r *Repository) GetDoctors() ([]models.Doctor, error) {
+	query := `SELECT id, firstName, lastName, email, specialty, experience, available FROM doctors`
+
+	rows, err := r.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var doctors []models.Doctor
+	for rows.Next() {
+		var doc models.Doctor
+		err := rows.Scan(&doc.ID, &doc.FirstName, &doc.LastName, &doc.Email, &doc.Specialty, &doc.Experience, &doc.Available)
+		if err != nil {
+			return nil, err
+		}
+		doctors = append(doctors, doc)
+	}
+	return doctors, nil
+}
+
+func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appointment, error) {
+	query := `SELECT id, patient_id, doctor_id, start_time, end_time, status, appointment_type FROM appointments WHERE patient_id = $1`
+
+	rows, err := r.DB.Query(query, patientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var appointments []models.Appointment
+	for rows.Next() {
+		var appt models.Appointment
+		err := rows.Scan(&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.StartTime, &appt.EndTime, &appt.Status, &appt.Type)
+		if err != nil {
+			return nil, err
+		}
+		appointments = append(appointments, appt)
+	}
+	return appointments, nil
+}
+
+func (r *Repository) GetPrescriptionsByPatientID(patientID int) ([]models.Prescription, error) {
+	query := `
+		SELECT p.id, p.patient_id, p.doctor_id, p.medication, p.notes, p.file_name, p.created_at, d.firstName, d.lastName
+		FROM prescriptions p
+		JOIN doctors d ON p.doctor_id = d.id
+		WHERE p.patient_id = $1
+		ORDER BY p.created_at DESC
+	`
+	rows, err := r.DB.Query(query, patientID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var prescriptions []models.Prescription
+	for rows.Next() {
+		var pres models.Prescription
+		var docFirstName, docLastName string
+		err := rows.Scan(&pres.ID, &pres.PatientID, &pres.DoctorID, &pres.Medication, &pres.Notes, &pres.FileName, &pres.CreatedAt, &docFirstName, &docLastName)
+		if err != nil {
+			return nil, err
+		}
+		pres.DoctorName = docFirstName + " " + docLastName
+		prescriptions = append(prescriptions, pres)
+	}
+	return prescriptions, nil
+}
+
+func (r *Repository) CreateAppointment(patientID int, doctorID int, startTime time.Time, endTime time.Time, apptType string) (int, error) {
+	query := `
+		INSERT INTO appointments (patient_id, doctor_id, start_time, end_time, appointment_type)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`
+	var newID int
+	err := r.DB.QueryRow(query, patientID, doctorID, startTime, endTime, apptType).Scan(&newID)
+	if err != nil {
+		return 0, err
+	}
+	return newID, nil
 }
