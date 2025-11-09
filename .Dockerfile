@@ -5,10 +5,12 @@ FROM golang:1.25.3-alpine AS builder
 WORKDIR /app
 
 # Copy all your project files
-COPY . .
+COPY go.mod go.sum ./
 
 # Download dependencies
 RUN go mod download
+
+COPY . .
 
 # Build the Go application
 # This creates a static binary at /app/main

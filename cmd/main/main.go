@@ -130,10 +130,11 @@ func main() {
 	// --- Protected Routes ---
 	// Create a group that uses the AuthMiddleware
 	authGroup := r.Group("/api")
-	authGroup.Use(api.AuthMiddleware()) // Apply the middleware
+	authGroup.Use(api.AuthMiddleware())
 	{
 		// All routes inside this block are now protected
 
+		authGroup.GET("/profile", h.GetUserProfile)
 		// authGroup.GET("/patient", h.GetPatient)
 		// authGroup.GET("/doctors", h.GetDoctors)
 		// authGroup.GET("/appointments", h.GetAppointments)

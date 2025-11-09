@@ -59,7 +59,16 @@ func AuthMiddleware() gin.HandlerFunc {
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
 				return
 			}
+
+			// Get User Role
+			role, ok := claims["role"].(string)
+			if !ok {
+				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims (role)"})
+				return
+			}
+
 			c.Set("userID", int(userIDFloat))
+			c.Set("role", role)
 		}
 
 		c.Next()
@@ -164,4 +173,39 @@ func (h *Handler) RegisterUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"id": id})
+}
+
+func (h *Handler) GetUserProfile(c *gin.Context) {
+	userID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	role, ok := c.Get("role")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "Role not found in context"})
+		return
+	}
+
+	switch role {
+	case "patient":
+		patient, err := h.Repo.GetPatientByID(userID.(int))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Patient profile not found"})
+			return
+		}
+		c.JSON(http.StatusOK, patient)
+
+	case "doctor":
+		doctor, err := h.Repo.GetDoctorByID(userID.(int))
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Doctor profile not found"})
+			return
+		}
+		c.JSON(http.StatusOK, doctor)
+
+	default:
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user role"})
+	}
 }

@@ -70,3 +70,27 @@ func (r *Repository) GetDoctorByEmail(email string) (models.Doctor, error) {
 
 	return user, nil
 }
+
+func (r *Repository) GetPatientByID(id int) (models.Patient, error) {
+	query := `SELECT id, firstName, lastName, email, hashedPassword FROM patients WHERE id=$1`
+
+	var user models.Patient
+	err := r.DB.QueryRow(query, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.HashedPassword)
+	if err != nil {
+		return models.Patient{}, err
+	}
+
+	return user, nil
+}
+
+func (r *Repository) GetDoctorByID(id int) (models.Doctor, error) {
+	query := `SELECT id, firstName, lastName, email, hashedPassword FROM doctors WHERE id=$1`
+
+	var user models.Doctor
+	err := r.DB.QueryRow(query, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.HashedPassword)
+	if err != nil {
+		return models.Doctor{}, err
+	}
+
+	return user, nil
+}
