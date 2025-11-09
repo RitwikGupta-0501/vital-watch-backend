@@ -118,7 +118,13 @@ func main() {
 	r := gin.Default()
 
 	// Enable CORS middleware
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // TODO: Replace with the fontend's address like []string{"http://localhost:3000"}
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	// -----------------------
 	// -       Routes        -
