@@ -26,7 +26,6 @@ func (h *Handler) Ping(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "pong from the api layer!"})
 }
 
-// --- Authentication Handlers ---
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -76,6 +75,7 @@ func AuthMiddleware() gin.HandlerFunc {
 	}
 }
 
+// Generic Handlers
 func (h *Handler) Login(c *gin.Context) {
 	var req struct {
 		Role     string `json:"role"`
@@ -137,7 +137,7 @@ func (h *Handler) Login(c *gin.Context) {
 	})
 }
 
-func (h *Handler) RegisterUser(c *gin.Context) {
+func (h *Handler) Register(c *gin.Context) {
 	var req struct {
 		Role      string `json:"role"`
 		FirstName string `json:"first_name"`
@@ -211,6 +211,7 @@ func (h *Handler) GetUserProfile(c *gin.Context) {
 	}
 }
 
+// Patient Portal Handlers
 func (h *Handler) GetDoctors(c *gin.Context) {
 	doctors, err := h.Repo.GetDoctors()
 	if err != nil {
@@ -308,3 +309,5 @@ func (h *Handler) DownloadPrescription(c *gin.Context) {
 	// 6. Serve the file
 	c.File(filePath)
 }
+
+// Doctor Portal Handlers

@@ -139,11 +139,10 @@ func main() {
 	// -       Routes        -
 	// -----------------------
 	r.GET("/api/ping", h.Ping)
-	r.POST("/api/register", h.RegisterUser)
+	r.POST("/api/register", h.Register)
 	r.POST("/api/login", h.Login)
 
 	// --- Protected Routes ---
-	// Create a group that uses the AuthMiddleware
 	authGroup := r.Group("/api")
 
 	// All routes inside this block will require authentication

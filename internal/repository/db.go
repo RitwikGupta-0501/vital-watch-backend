@@ -12,6 +12,7 @@ type Repository struct {
 	DB *sql.DB
 }
 
+// Patient Related Methods
 func (r *Repository) CreatePatient(firstName, lastName, email, hashedPassword string) (int, error) {
 	query := `
 		INSERT INTO patients (firstName, lastName, email, hashedPassword)
@@ -22,23 +23,6 @@ func (r *Repository) CreatePatient(firstName, lastName, email, hashedPassword st
 	var newID int
 
 	// Pass all 4 arguments
-	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword).Scan(&newID)
-	if err != nil {
-		return 0, err
-	}
-
-	return newID, nil
-}
-
-func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword string) (int, error) {
-	query := `
-		INSERT INTO doctors (firstName, lastName, email, hashedPassword)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id
-	`
-
-	var newID int
-
 	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword).Scan(&newID)
 	if err != nil {
 		return 0, err
@@ -60,18 +44,6 @@ func (r *Repository) GetPatientByEmail(email string) (models.Patient, error) {
 	return user, nil
 }
 
-func (r *Repository) GetDoctorByEmail(email string) (models.Doctor, error) {
-	query := `SELECT id, firstName, lastName, email, hashedPassword FROM doctors WHERE email=$1`
-
-	var user models.Doctor
-	err := r.DB.QueryRow(query, email).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.HashedPassword)
-	if err != nil {
-		return models.Doctor{}, err
-	}
-
-	return user, nil
-}
-
 func (r *Repository) GetPatientByID(id int) (models.Patient, error) {
 	query := `SELECT id, firstName, lastName, email, hashedPassword FROM patients WHERE id=$1`
 
@@ -79,6 +51,36 @@ func (r *Repository) GetPatientByID(id int) (models.Patient, error) {
 	err := r.DB.QueryRow(query, id).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.HashedPassword)
 	if err != nil {
 		return models.Patient{}, err
+	}
+
+	return user, nil
+}
+
+// Doctor Related Methods
+func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword string) (int, error) {
+	query := `
+		INSERT INTO doctors (firstName, lastName, email, hashedPassword)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id
+	`
+
+	var newID int
+
+	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword).Scan(&newID)
+	if err != nil {
+		return 0, err
+	}
+
+	return newID, nil
+}
+
+func (r *Repository) GetDoctorByEmail(email string) (models.Doctor, error) {
+	query := `SELECT id, firstName, lastName, email, hashedPassword FROM doctors WHERE email=$1`
+
+	var user models.Doctor
+	err := r.DB.QueryRow(query, email).Scan(&user.ID, &user.FirstName, &user.LastName, &user.Email, &user.HashedPassword)
+	if err != nil {
+		return models.Doctor{}, err
 	}
 
 	return user, nil
@@ -115,6 +117,31 @@ func (r *Repository) GetDoctors() ([]models.Doctor, error) {
 		doctors = append(doctors, doc)
 	}
 	return doctors, nil
+}
+
+// Appointment Related Methods
+func (r *Repository) CreateAppointment(patientID int, doctorID int, startTime time.Time, endTime time.Time, apptType string) (int, error) {
+	query := `
+		INSERT INTO appointments (patient_id, doctor_id, start_time, end_time, appointment_type)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`
+	var newID int
+	err := r.DB.QueryRow(query, patientID, doctorID, startTime, endTime, apptType).Scan(&newID)
+	if err != nil {
+		return 0, err
+	}
+	return newID, nil
+}
+
+func (r *Repository) GetPrescriptionByFilename(patientID int, filename string) (models.Prescription, error) {
+	query := `SELECT id FROM prescriptions WHERE patient_id = $1 AND file_name = $2`
+
+	var pres models.Prescription
+	err := r.DB.QueryRow(query, patientID, filename).Scan(&pres.ID)
+
+	// This will correctly return sql.ErrNoRows if not found/not owned
+	return pres, err
 }
 
 func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appointment, error) {
@@ -159,6 +186,7 @@ func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appoint
 	return appointments, nil
 }
 
+// Prescription Related Methods
 func (r *Repository) GetPrescriptionsByPatientID(patientID int) ([]models.Prescription, error) {
 	query := `
 		SELECT p.id, p.patient_id, p.doctor_id, p.medication, p.notes, p.file_name, p.created_at, d.firstName, d.lastName
@@ -185,28 +213,4 @@ func (r *Repository) GetPrescriptionsByPatientID(patientID int) ([]models.Prescr
 		prescriptions = append(prescriptions, pres)
 	}
 	return prescriptions, nil
-}
-
-func (r *Repository) CreateAppointment(patientID int, doctorID int, startTime time.Time, endTime time.Time, apptType string) (int, error) {
-	query := `
-		INSERT INTO appointments (patient_id, doctor_id, start_time, end_time, appointment_type)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id
-	`
-	var newID int
-	err := r.DB.QueryRow(query, patientID, doctorID, startTime, endTime, apptType).Scan(&newID)
-	if err != nil {
-		return 0, err
-	}
-	return newID, nil
-}
-
-func (r *Repository) GetPrescriptionByFilename(patientID int, filename string) (models.Prescription, error) {
-	query := `SELECT id FROM prescriptions WHERE patient_id = $1 AND file_name = $2`
-
-	var pres models.Prescription
-	err := r.DB.QueryRow(query, patientID, filename).Scan(&pres.ID)
-
-	// This will correctly return sql.ErrNoRows if not found/not owned
-	return pres, err
 }
