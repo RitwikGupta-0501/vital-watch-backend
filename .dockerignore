@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+
+# IDE / OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Env files (should not be in the image)
+.env
+.env.local
+.env.example
+
+# Local uploaded files
+/storage
+
+# Go build cache/binaries
+*.exe
+*.out
+vital-watch
+
+# Docker
+# These files are used to build the image,
+# but they aren't needed inside the image.
+.dockerignore
+.Dockerfile
+Dockerfile
+docker-compose.yml
