@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -339,4 +340,50 @@ func (h *Handler) GetDoctorPatients(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, patients)
+}
+
+func (h *Handler) GetPatientHistoryAppointments(c *gin.Context) {
+	doctorID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	patientIDStr := c.Param("id")
+	patientID, err := strconv.Atoi(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid patient ID"})
+		return
+	}
+
+	appointments, err := h.Repo.GetAppointmentsForPatient(doctorID.(int), patientID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch appointments"})
+		return
+	}
+
+	c.JSON(http.StatusOK, appointments)
+}
+
+func (h *Handler) GetPatientHistoryPrescriptions(c *gin.Context) {
+	doctorID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	patientIDStr := c.Param("id")
+	patientID, err := strconv.Atoi(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid patient ID"})
+		return
+	}
+
+	prescriptions, err := h.Repo.GetPrescriptionsForPatient(doctorID.(int), patientID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch prescriptions"})
+		return
+	}
+
+	c.JSON(http.StatusOK, prescriptions)
 }

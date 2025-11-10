@@ -234,6 +234,44 @@ func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appoint
 	return appointments, nil
 }
 
+func (r *Repository) GetAppointmentsForPatient(doctorID int, patientID int) ([]models.Appointment, error) {
+	query := `
+		SELECT 
+			a.id, a.patient_id, a.doctor_id, a.start_time, a.end_time, a.status, a.appointment_type,
+			d.firstName, d.lastName, d.specialty
+		FROM appointments a
+		JOIN doctors d ON a.doctor_id = d.id
+		WHERE a.patient_id = $1 AND a.doctor_id IN (
+			SELECT doctor_id FROM appointments WHERE patient_id = $1 AND doctor_id = $2
+		)
+		ORDER BY a.start_time DESC
+	`
+	rows, err := r.DB.Query(query, patientID, doctorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var appointments []models.Appointment
+	for rows.Next() {
+		var appt models.Appointment
+		var docFirstName, docLastName, docSpecialty string
+
+		err := rows.Scan(
+			&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.StartTime, &appt.EndTime, &appt.Status, &appt.Type,
+			&docFirstName, &docLastName, &docSpecialty,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		appt.DoctorName = docFirstName + " " + docLastName
+		appt.DoctorSpecialty = docSpecialty
+		appointments = append(appointments, appt)
+	}
+	return appointments, nil
+}
+
 // Prescription Related Methods
 func (r *Repository) GetPrescriptionsByPatientID(patientID int) ([]models.Prescription, error) {
 	query := `
@@ -271,4 +309,36 @@ func (r *Repository) GetPrescriptionByFilename(patientID int, filename string) (
 
 	// This will correctly return sql.ErrNoRows if not found/not owned
 	return pres, err
+}
+
+func (r *Repository) GetPrescriptionsForPatient(doctorID int, patientID int) ([]models.Prescription, error) {
+	query := `
+		SELECT 
+			p.id, p.patient_id, p.doctor_id, p.medication, p.notes, p.file_name, p.created_at, 
+			d.firstName, d.lastName
+		FROM prescriptions p
+		JOIN doctors d ON p.doctor_id = d.id
+		WHERE p.patient_id = $1 AND p.patient_id IN (
+			SELECT patient_id FROM appointments WHERE patient_id = $1 AND doctor_id = $2
+		)
+		ORDER BY p.created_at DESC
+	`
+	rows, err := r.DB.Query(query, patientID, doctorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var prescriptions []models.Prescription
+	for rows.Next() {
+		var pres models.Prescription
+		var docFirstName, docLastName string
+		err := rows.Scan(&pres.ID, &pres.PatientID, &pres.DoctorID, &pres.Medication, &pres.Notes, &pres.FileName, &pres.CreatedAt, &docFirstName, &docLastName)
+		if err != nil {
+			return nil, err
+		}
+		pres.DoctorName = docFirstName + " " + docLastName
+		prescriptions = append(prescriptions, pres)
+	}
+	return prescriptions, nil
 }
