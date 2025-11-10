@@ -161,6 +161,7 @@ func main() {
 		authGroup.GET("/prescriptions/:filename", h.DownloadPrescription)
 		authGroup.GET("/doctor/patients/:id/appointments", h.GetPatientHistoryAppointments)
 		authGroup.GET("/doctor/patients/:id/prescriptions", h.GetPatientHistoryPrescriptions)
+		authGroup.PATCH("/appointments/:id", h.MarkAppointmentAsCompleted)
 	}
 
 	// Run the server

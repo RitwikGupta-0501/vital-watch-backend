@@ -83,16 +83,16 @@ func (r *Repository) GetPatientsByDoctorID(doctorID int) ([]models.Patient, erro
 }
 
 // Doctor Related Methods
-func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword string) (int, error) {
+func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword, specialty string, experience int) (int, error) {
 	query := `
-		INSERT INTO doctors (firstName, lastName, email, hashedPassword)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO doctors (firstName, lastName, email, hashedPassword, specialty, experience)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id
 	`
 
 	var newID int
 
-	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword).Scan(&newID)
+	err := r.DB.QueryRow(query, firstName, lastName, email, hashedPassword, specialty, experience).Scan(&newID)
 	if err != nil {
 		return 0, err
 	}
@@ -270,6 +270,12 @@ func (r *Repository) GetAppointmentsForPatient(doctorID int, patientID int) ([]m
 		appointments = append(appointments, appt)
 	}
 	return appointments, nil
+}
+
+func (r *Repository) UpdateAppointmentAsCompleted(appointmentID int) error {
+	query := `UPDATE appointments SET status = 'completed' WHERE id = $1`
+	_, err := r.DB.Exec(query, appointmentID)
+	return err
 }
 
 // Prescription Related Methods

@@ -142,11 +142,13 @@ func (h *Handler) Login(c *gin.Context) {
 
 func (h *Handler) Register(c *gin.Context) {
 	var req struct {
-		Role      string `json:"role"`
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Email     string `json:"email"`
-		Password  string `json:"password"`
+		Role       string `json:"role"`
+		FirstName  string `json:"first_name"`
+		LastName   string `json:"last_name"`
+		Email      string `json:"email"`
+		Password   string `json:"password"`
+		Specialty  string `json:"specialty,omitempty"`  // For doctors
+		Experience int    `json:"experience,omitempty"` // For doctors
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -165,7 +167,7 @@ func (h *Handler) Register(c *gin.Context) {
 	case "patient":
 		id, err = h.Repo.CreatePatient(req.FirstName, req.LastName, req.Email, hashed)
 	case "doctor":
-		id, err = h.Repo.CreateDoctor(req.FirstName, req.LastName, req.Email, hashed)
+		id, err = h.Repo.CreateDoctor(req.FirstName, req.LastName, req.Email, hashed, req.Specialty, req.Experience)
 	default:
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid role"})
 		return
@@ -263,7 +265,7 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "err": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
 		return
 	}
 
@@ -275,7 +277,7 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 
 	newID, err := h.Repo.CreateAppointment(patientID.(int), req.DoctorID, req.StartTime, req.EndTime, req.Type)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create appointment"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create appointment", "err": err.Error()})
 		return
 	}
 
@@ -321,9 +323,12 @@ func (h *Handler) GetDoctorAppointments(c *gin.Context) {
 		return
 	}
 
+	// --- DEBUGGING: Log the doctorID ---
+	log.Printf("GetDoctorAppointments: Fetching appointments for doctorID: %d", doctorID.(int))
+
 	appointments, err := h.Repo.GetAppointmentsByDoctorID(doctorID.(int))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch appointments"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch appointments", "err": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, appointments)
@@ -456,4 +461,22 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{"id": newID, "filename": uniqueFilename})
+}
+
+func (h *Handler) MarkAppointmentAsCompleted(c *gin.Context) {
+	appointmentIDStr := c.Param("id")
+	appointmentID, err := strconv.Atoi(appointmentIDStr)
+
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid appointment ID"})
+		return
+	}
+
+	err = h.Repo.UpdateAppointmentAsCompleted(appointmentID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to mark appointment as completed", "err": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Appointment marked as completed"})
 }
