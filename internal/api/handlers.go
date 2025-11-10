@@ -218,7 +218,7 @@ func (h *Handler) GetUserProfile(c *gin.Context) {
 func (h *Handler) GetDoctors(c *gin.Context) {
 	doctors, err := h.Repo.GetDoctors()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch doctors"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch doctors", "err": err.Error()})
 		return
 	}
 	c.JSON(http.StatusOK, doctors)
@@ -263,7 +263,7 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body", "err": err.Error()})
 		return
 	}
 
@@ -401,7 +401,7 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 	// Parse the multipart form
 	// 10 MB = Max File Size
 	if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form", "err": err.Error()})
 		return
 	}
 
@@ -412,14 +412,14 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 
 	patientID, err := strconv.Atoi(patientIDStr)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid patientID"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid patientID", "err": err.Error()})
 		return
 	}
 
 	// Get the file
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required", "err": err.Error()})
 		return
 	}
 	defer file.Close()
@@ -435,14 +435,14 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 	// Create the directory if it doesn't exist
 	if err := os.MkdirAll(storagePath, os.ModePerm); err != nil {
 		log.Printf("Failed to create storage directory: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file", "err": err.Error()})
 		return
 	}
 
 	// Save the file to the destination
 	if err := c.SaveUploadedFile(header, dst); err != nil {
 		log.Printf("Failed to save file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file", "err": err.Error()})
 		return
 	}
 
@@ -451,7 +451,7 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 	if err != nil {
 		log.Printf("Failed to create prescription in DB: %v", err)
 		os.Remove(dst)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create prescription record"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create prescription record", "err": err.Error()})
 		return
 	}
 

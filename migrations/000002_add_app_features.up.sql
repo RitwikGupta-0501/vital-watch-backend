@@ -1,7 +1,7 @@
 -- Add new columns to doctors table
 ALTER TABLE doctors
-ADD COLUMN specialty VARCHAR(100),
-ADD COLUMN experience INT,
+ADD COLUMN specialty VARCHAR(100) DEFAULT 'General',
+ADD COLUMN experience INT DEFAULT 0,
 ADD COLUMN available BOOLEAN DEFAULT TRUE;
 
 -- Create the appointments table
