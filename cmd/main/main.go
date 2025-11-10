@@ -159,6 +159,7 @@ func main() {
 		authGroup.POST("/prescriptions", h.CreatePrescription)
 
 		authGroup.GET("/prescriptions/:filename", h.DownloadPrescription)
+		authGroup.GET("/doctor/prescriptions/:filename", h.DoctorDownloadPrescription)
 		authGroup.GET("/doctor/patients/:id/appointments", h.GetPatientHistoryAppointments)
 		authGroup.GET("/doctor/patients/:id/prescriptions", h.GetPatientHistoryPrescriptions)
 		authGroup.PATCH("/appointments/:id", h.MarkAppointmentAsCompleted)

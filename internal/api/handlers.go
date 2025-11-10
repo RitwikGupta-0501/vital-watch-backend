@@ -480,3 +480,27 @@ func (h *Handler) MarkAppointmentAsCompleted(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Appointment marked as completed"})
 }
+
+func (h *Handler) DoctorDownloadPrescription(c *gin.Context) {
+	filename := c.Param("filename")
+
+	doctorID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	_, err := h.Repo.GetPrescriptionByFilenameForDoctor(doctorID.(int), filename)
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized to download this file"})
+		return
+	}
+
+	filePath := filepath.Join("/app/storage", filename)
+
+	// Set headers
+	c.Header("Content-Disposition", "attachment; filename="+filename)
+	c.Header("Content-Type", "application/octet-stream")
+
+	c.File(filePath)
+}

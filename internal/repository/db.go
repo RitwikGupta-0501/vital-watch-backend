@@ -362,3 +362,17 @@ func (r *Repository) GetPrescriptionsForPatient(doctorID int, patientID int) ([]
 	}
 	return prescriptions, nil
 }
+
+func (r *Repository) GetPrescriptionByFilenameForDoctor(doctorID int, filename string) (models.Prescription, error) {
+	query := `
+		SELECT p.id 
+		FROM prescriptions p
+		JOIN appointments a ON p.patient_id = a.patient_id
+		WHERE p.file_name = $1 AND a.doctor_id = $2
+		LIMIT 1
+	`
+	var pres models.Prescription
+	err := r.DB.QueryRow(query, filename, doctorID).Scan(&pres.ID)
+
+	return pres, err
+}
