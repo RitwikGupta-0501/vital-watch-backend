@@ -53,6 +53,7 @@ type Appointment struct {
 	Type            string    `json:"type"`
 	DoctorName      string    `json:"doctorName,omitempty"`
 	DoctorSpecialty string    `json:"specialty,omitempty"`
+	PatientName     string    `json:"patientName,omitempty"`
 }
 
 type Prescription struct {

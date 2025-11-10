@@ -134,18 +134,43 @@ func (r *Repository) CreateAppointment(patientID int, doctorID int, startTime ti
 	return newID, nil
 }
 
-func (r *Repository) GetPrescriptionByFilename(patientID int, filename string) (models.Prescription, error) {
-	query := `SELECT id FROM prescriptions WHERE patient_id = $1 AND file_name = $2`
+func (r *Repository) GetAppointmentsByDoctorID(doctorID int) ([]models.Appointment, error) {
+	query := `
+		SELECT 
+			a.id, a.patient_id, a.doctor_id, a.start_time, a.end_time, a.status, a.appointment_type,
+			p.firstName, p.lastName
+		FROM appointments a
+		JOIN patients p ON a.patient_id = p.id
+		WHERE a.doctor_id = $1
+		ORDER BY a.start_time DESC`
 
-	var pres models.Prescription
-	err := r.DB.QueryRow(query, patientID, filename).Scan(&pres.ID)
+	rows, err := r.DB.Query(query, doctorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
 
-	// This will correctly return sql.ErrNoRows if not found/not owned
-	return pres, err
+	var appointments []models.Appointment
+	for rows.Next() {
+		var appt models.Appointment
+		var patientFirstName, patientLastName string
+
+		err := rows.Scan(
+			&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.StartTime, &appt.EndTime, &appt.Status, &appt.Type,
+			&patientFirstName, &patientLastName,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		appt.PatientName = patientFirstName + " " + patientLastName
+
+		appointments = append(appointments, appt)
+	}
+	return appointments, nil
 }
 
 func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appointment, error) {
-	// 1. UPDATED: The query now JOINS the doctors table
 	query := `
 		SELECT 
 			a.id, a.patient_id, a.doctor_id, a.start_time, a.end_time, a.status, a.appointment_type,
@@ -165,10 +190,8 @@ func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appoint
 	var appointments []models.Appointment
 	for rows.Next() {
 		var appt models.Appointment
-		// 2. UPDATED: Add variables to scan the new doctor fields
 		var docFirstName, docLastName, docSpecialty string
 
-		// 3. UPDATED: Scan all 10 columns
 		err := rows.Scan(
 			&appt.ID, &appt.PatientID, &appt.DoctorID, &appt.StartTime, &appt.EndTime, &appt.Status, &appt.Type,
 			&docFirstName, &docLastName, &docSpecialty,
@@ -177,7 +200,6 @@ func (r *Repository) GetAppointmentsByPatientID(patientID int) ([]models.Appoint
 			return nil, err
 		}
 
-		// 4. UPDATED: Populate the new struct fields
 		appt.DoctorName = docFirstName + " " + docLastName
 		appt.DoctorSpecialty = docSpecialty
 
@@ -213,4 +235,14 @@ func (r *Repository) GetPrescriptionsByPatientID(patientID int) ([]models.Prescr
 		prescriptions = append(prescriptions, pres)
 	}
 	return prescriptions, nil
+}
+
+func (r *Repository) GetPrescriptionByFilename(patientID int, filename string) (models.Prescription, error) {
+	query := `SELECT id FROM prescriptions WHERE patient_id = $1 AND file_name = $2`
+
+	var pres models.Prescription
+	err := r.DB.QueryRow(query, patientID, filename).Scan(&pres.ID)
+
+	// This will correctly return sql.ErrNoRows if not found/not owned
+	return pres, err
 }

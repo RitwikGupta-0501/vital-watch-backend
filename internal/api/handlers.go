@@ -221,7 +221,7 @@ func (h *Handler) GetDoctors(c *gin.Context) {
 	c.JSON(http.StatusOK, doctors)
 }
 
-func (h *Handler) GetAppointments(c *gin.Context) {
+func (h *Handler) GetPatientAppointments(c *gin.Context) {
 	patientID, ok := c.Get("userID")
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
@@ -236,7 +236,7 @@ func (h *Handler) GetAppointments(c *gin.Context) {
 	c.JSON(http.StatusOK, appointments)
 }
 
-func (h *Handler) GetPrescriptions(c *gin.Context) {
+func (h *Handler) GetPatientPrescriptions(c *gin.Context) {
 	patientID, ok := c.Get("userID")
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
@@ -311,3 +311,17 @@ func (h *Handler) DownloadPrescription(c *gin.Context) {
 }
 
 // Doctor Portal Handlers
+func (h *Handler) GetDoctorAppointments(c *gin.Context) {
+	doctorID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	appointments, err := h.Repo.GetAppointmentsByDoctorID(doctorID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch appointments"})
+		return
+	}
+	c.JSON(http.StatusOK, appointments)
+}
