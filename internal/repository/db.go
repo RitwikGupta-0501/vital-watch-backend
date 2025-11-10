@@ -56,6 +56,32 @@ func (r *Repository) GetPatientByID(id int) (models.Patient, error) {
 	return user, nil
 }
 
+func (r *Repository) GetPatientsByDoctorID(doctorID int) ([]models.Patient, error) {
+	query := `
+		SELECT DISTINCT p.id, p.firstName, p.lastName, p.email, p.createdAt
+		FROM patients p
+		JOIN appointments a ON p.id = a.patient_id
+		WHERE a.doctor_id = $1`
+
+	rows, err := r.DB.Query(query, doctorID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var patients []models.Patient
+	for rows.Next() {
+		var patient models.Patient
+		err := rows.Scan(&patient.ID, &patient.FirstName, &patient.LastName, &patient.Email, &patient.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		patients = append(patients, patient)
+	}
+
+	return patients, nil
+}
+
 // Doctor Related Methods
 func (r *Repository) CreateDoctor(firstName, lastName, email, hashedPassword string) (int, error) {
 	query := `

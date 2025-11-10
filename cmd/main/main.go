@@ -153,6 +153,7 @@ func main() {
 		authGroup.GET("/patient/appointments", h.GetPatientAppointments)
 		authGroup.GET("/doctor/appointments", h.GetDoctorAppointments)
 		authGroup.GET("/patient/prescriptions", h.GetPatientPrescriptions)
+		authGroup.GET("/doctor/patients", h.GetDoctorPatients)
 
 		authGroup.POST("/appointments", h.CreateAppointment)
 

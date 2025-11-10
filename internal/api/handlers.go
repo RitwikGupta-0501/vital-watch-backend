@@ -325,3 +325,18 @@ func (h *Handler) GetDoctorAppointments(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, appointments)
 }
+
+func (h *Handler) GetDoctorPatients(c *gin.Context) {
+	doctorID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	patients, err := h.Repo.GetPatientsByDoctorID(doctorID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch patients"})
+		return
+	}
+	c.JSON(http.StatusOK, patients)
+}
