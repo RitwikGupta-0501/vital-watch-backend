@@ -273,6 +273,20 @@ func (r *Repository) GetAppointmentsForPatient(doctorID int, patientID int) ([]m
 }
 
 // Prescription Related Methods
+func (r *Repository) CreatePrescription(patientID int, doctorID int, medication, notes, fileName string) (int, error) {
+	query := `
+		INSERT INTO prescriptions (patient_id, doctor_id, medication, notes, file_name)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id
+	`
+	var newID int
+	err := r.DB.QueryRow(query, patientID, doctorID, medication, notes, fileName).Scan(&newID)
+	if err != nil {
+		return 0, err
+	}
+	return newID, nil
+}
+
 func (r *Repository) GetPrescriptionsByPatientID(patientID int) ([]models.Prescription, error) {
 	query := `
 		SELECT p.id, p.patient_id, p.doctor_id, p.medication, p.notes, p.file_name, p.created_at, d.firstName, d.lastName

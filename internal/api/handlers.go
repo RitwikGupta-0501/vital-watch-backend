@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 
 	"github.com/RitwikGupta-0501/vital-watch/internal/models"
 	"github.com/RitwikGupta-0501/vital-watch/internal/repository"
@@ -386,4 +388,72 @@ func (h *Handler) GetPatientHistoryPrescriptions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, prescriptions)
+}
+
+func (h *Handler) CreatePrescription(c *gin.Context) {
+	// Get doctor ID from token
+	doctorID, ok := c.Get("userID")
+	if !ok {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
+		return
+	}
+
+	// Parse the multipart form
+	// 10 MB = Max File Size
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form"})
+		return
+	}
+
+	// Get text fields
+	patientIDStr := c.Request.FormValue("patientID")
+	medication := c.Request.FormValue("medication")
+	notes := c.Request.FormValue("notes")
+
+	patientID, err := strconv.Atoi(patientIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid patientID"})
+		return
+	}
+
+	// Get the file
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required"})
+		return
+	}
+	defer file.Close()
+
+	// Generate a unique filename
+	ext := filepath.Ext(header.Filename)
+	uniqueFilename := fmt.Sprintf("prescription-%s%s", uuid.New().String(), ext)
+
+	// Save the file
+	storagePath := "/app/storage" // Path inside the Docker container
+	dst := filepath.Join(storagePath, uniqueFilename)
+
+	// Create the directory if it doesn't exist
+	if err := os.MkdirAll(storagePath, os.ModePerm); err != nil {
+		log.Printf("Failed to create storage directory: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	// Save the file to the destination
+	if err := c.SaveUploadedFile(header, dst); err != nil {
+		log.Printf("Failed to save file: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+		return
+	}
+
+	// Save to database
+	newID, err := h.Repo.CreatePrescription(patientID, doctorID.(int), medication, notes, uniqueFilename)
+	if err != nil {
+		log.Printf("Failed to create prescription in DB: %v", err)
+		os.Remove(dst)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create prescription record"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"id": newID, "filename": uniqueFilename})
 }
