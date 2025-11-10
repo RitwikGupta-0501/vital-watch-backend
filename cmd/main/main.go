@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"log"
@@ -19,6 +20,9 @@ import (
 
 	"github.com/RitwikGupta-0501/vital-watch/internal/api"
 	"github.com/RitwikGupta-0501/vital-watch/internal/repository"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 /*
@@ -113,6 +117,20 @@ func main() {
 	// Run DB migrations
 	run_migrations(db)
 
+	// Initialize AWS S3 Client
+	log.Println("Initializing AWS Config...")
+	cfg, err := config.LoadDefaultConfig(context.TODO())
+	if err != nil {
+		log.Fatal("Failed to load AWS config:", err)
+	}
+
+	s3Client := s3.NewFromConfig(cfg)
+	bucketName := os.Getenv("S3_BUCKET_NAME")
+	if bucketName == "" {
+		log.Fatal("S3_BUCKET_NAME environment variable is not set")
+	}
+	log.Println("Successfully initialized S3 Client")
+
 	// Initialize repository
 	repo := &repository.Repository{
 		DB: db,
@@ -120,7 +138,9 @@ func main() {
 
 	// Create the API Handler
 	h := &api.Handler{
-		Repo: repo,
+		Repo:       repo,
+		S3Client:   s3Client,
+		BucketName: bucketName,
 	}
 
 	// Set up Gin Server

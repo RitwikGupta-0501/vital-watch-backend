@@ -1,14 +1,18 @@
 package api
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -22,7 +26,9 @@ import (
 var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
 
 type Handler struct {
-	Repo *repository.Repository
+	Repo       *repository.Repository
+	S3Client   *s3.Client
+	BucketName string
 }
 
 func (h *Handler) Ping(c *gin.Context) {
@@ -285,34 +291,41 @@ func (h *Handler) CreateAppointment(c *gin.Context) {
 }
 
 func (h *Handler) DownloadPrescription(c *gin.Context) {
-	// 1. Get the filename from the URL
 	filename := c.Param("filename")
 
-	// 2. Get the user ID from the token
 	patientID, ok := c.Get("userID")
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
 		return
 	}
 
-	// 3. SECURITY CHECK: Verify this patient owns this file
+	// SECURITY CHECK: Verify this patient owns this file
 	_, err := h.Repo.GetPrescriptionByFilename(patientID.(int), filename)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized to download this file"})
 		return
 	}
 
-	// 4. Build the secure file path
-	//    We use the path from our Docker volume: /app/storage
-	//    filepath.Join prevents "directory traversal" attacks
-	filePath := filepath.Join("/app/storage", filename)
+	// Get the file from S3
+	getObjectInput := &s3.GetObjectInput{
+		Bucket: aws.String(h.BucketName),
+		Key:    aws.String(filename),
+	}
+	out, err := h.S3Client.GetObject(context.TODO(), getObjectInput)
+	if err != nil {
+		log.Printf("Failed to get object from S3: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve file"})
+		return
+	}
+	defer out.Body.Close()
 
-	// 5. Set headers to tell the browser to download it
+	// Set headers to tell the browser to download it
 	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Header("Content-Type", "application/octet-stream") // A generic type for downloading
+	c.Header("Content-Type", *out.ContentType)
+	c.Header("Content-Length", strconv.FormatInt(*out.ContentLength, 10))
 
-	// 6. Serve the file
-	c.File(filePath)
+	// Stream the file
+	io.Copy(c.Writer, out.Body)
 }
 
 // Doctor Portal Handlers
@@ -396,21 +409,17 @@ func (h *Handler) GetPatientHistoryPrescriptions(c *gin.Context) {
 }
 
 func (h *Handler) CreatePrescription(c *gin.Context) {
-	// Get doctor ID from token
 	doctorID, ok := c.Get("userID")
 	if !ok {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "User ID not found in context"})
 		return
 	}
 
-	// Parse the multipart form
-	// 10 MB = Max File Size
-	if err := c.Request.ParseMultipartForm(10 << 20); err != nil {
+	if err := c.Request.ParseMultipartForm(10 << 20); err != nil { // 10 MB Max File Size
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to parse form", "err": err.Error()})
 		return
 	}
 
-	// Get text fields
 	patientIDStr := c.Request.FormValue("patientID")
 	medication := c.Request.FormValue("medication")
 	notes := c.Request.FormValue("notes")
@@ -421,7 +430,6 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 		return
 	}
 
-	// Get the file
 	file, header, err := c.Request.FormFile("file")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "File is required", "err": err.Error()})
@@ -430,32 +438,39 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 	defer file.Close()
 
 	// Generate a unique filename
-	ext := filepath.Ext(header.Filename)
-	uniqueFilename := fmt.Sprintf("prescription-%s%s", uuid.New().String(), ext)
+	uniqueFilename := fmt.Sprintf("prescription-%s-%s", patientIDStr, uuid.New().String())
 
-	// Save the file
-	storagePath := "/app/storage" // Path inside the Docker container
-	dst := filepath.Join(storagePath, uniqueFilename)
+	// Upload to S3
+	putObjectInput := &s3.PutObjectInput{
+		Bucket:      aws.String(h.BucketName),
+		Key:         aws.String(uniqueFilename),
+		Body:        file,
+		ContentType: aws.String(header.Header.Get("Content-Type")),
+	}
 
-	// Create the directory if it doesn't exist
-	if err := os.MkdirAll(storagePath, os.ModePerm); err != nil {
-		log.Printf("Failed to create storage directory: %v", err)
+	_, err = h.S3Client.PutObject(context.TODO(), putObjectInput)
+	if err != nil {
+		log.Printf("Failed to upload file to S3: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file", "err": err.Error()})
 		return
 	}
 
-	// Save the file to the destination
-	if err := c.SaveUploadedFile(header, dst); err != nil {
-		log.Printf("Failed to save file: %v", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file", "err": err.Error()})
-		return
-	}
-
-	// Save to database
+	// Save metadata to database
 	newID, err := h.Repo.CreatePrescription(patientID, doctorID.(int), medication, notes, uniqueFilename)
 	if err != nil {
 		log.Printf("Failed to create prescription in DB: %v", err)
-		os.Remove(dst)
+		// If DB save fails, roll back S3 upload
+		go func() {
+			log.Printf("Rolling back S3 upload for key: %s", uniqueFilename)
+			deleteObjectInput := &s3.DeleteObjectInput{
+				Bucket: aws.String(h.BucketName),
+				Key:    aws.String(uniqueFilename),
+			}
+			_, delErr := h.S3Client.DeleteObject(context.TODO(), deleteObjectInput)
+			if delErr != nil {
+				log.Printf("CRITICAL: Failed to rollback S3 upload: %v", delErr)
+			}
+		}()
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create prescription record", "err": err.Error()})
 		return
 	}
@@ -490,17 +505,30 @@ func (h *Handler) DoctorDownloadPrescription(c *gin.Context) {
 		return
 	}
 
+	// SECURITY CHECK: Verify this doctor is associated with this file
 	_, err := h.Repo.GetPrescriptionByFilenameForDoctor(doctorID.(int), filename)
 	if err != nil {
+		log.Printf("Doctor download auth failed: %v", err)
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "You are not authorized to download this file"})
 		return
 	}
 
-	filePath := filepath.Join("/app/storage", filename)
+	// Get the file from S3
+	getObjectInput := &s3.GetObjectInput{
+		Bucket: aws.String(h.BucketName),
+		Key:    aws.String(filename),
+	}
+	out, err := h.S3Client.GetObject(context.TODO(), getObjectInput)
+	if err != nil {
+		log.Printf("Failed to get object from S3: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve file"})
+		return
+	}
+	defer out.Body.Close()
 
-	// Set headers
 	c.Header("Content-Disposition", "attachment; filename="+filename)
-	c.Header("Content-Type", "application/octet-stream")
+	c.Header("Content-Type", *out.ContentType)
+	c.Header("Content-Length", strconv.FormatInt(*out.ContentLength, 10))
 
-	c.File(filePath)
+	io.Copy(c.Writer, out.Body)
 }
