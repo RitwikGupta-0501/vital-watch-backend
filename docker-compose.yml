@@ -2,7 +2,7 @@ services:
   api:
     build:
       context: .
-      dockerfile: .Dockerfile
+      dockerfile: Dockerfile
     container_name: vital-watch-api
     restart: unless-stopped
     ports:
