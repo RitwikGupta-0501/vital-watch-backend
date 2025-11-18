@@ -148,7 +148,7 @@ func main() {
 
 	// Enable CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // TODO: Replace with the fontend's address like []string{"http://localhost:3000"}
+		AllowOrigins:     []string{"https://d11ox9eozk6am1.cloudfront.net"}, // TODO: Replace with the fontend's address like []string{"http://localhost:3000"}
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
