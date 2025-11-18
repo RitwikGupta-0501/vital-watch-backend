@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -438,14 +439,16 @@ func (h *Handler) CreatePrescription(c *gin.Context) {
 	defer file.Close()
 
 	// Generate a unique filename
-	uniqueFilename := fmt.Sprintf("prescription-%s-%s", patientIDStr, uuid.New().String())
+	ext := filepath.Ext(header.Filename) // Get .pdf or .jpg
+	uniqueFilename := fmt.Sprintf("prescription-%s-%s%s", patientIDStr, uuid.New().String(), ext)
 
 	// Upload to S3
 	putObjectInput := &s3.PutObjectInput{
-		Bucket:      aws.String(h.BucketName),
-		Key:         aws.String(uniqueFilename),
-		Body:        file,
-		ContentType: aws.String(header.Header.Get("Content-Type")),
+		Bucket:        aws.String(h.BucketName),
+		Key:           aws.String(uniqueFilename),
+		Body:          file,
+		ContentLength: aws.Int64(header.Size),
+		ContentType:   aws.String(header.Header.Get("Content-Type")),
 	}
 
 	_, err = h.S3Client.PutObject(context.TODO(), putObjectInput)
